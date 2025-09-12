@@ -1,0 +1,86 @@
+use std::collections::{hash_map, HashMap};
+use std::env::{args, current_dir};
+use std::fs::{File, OpenOptions};
+use std::io::{self,Error, Write };
+use std::os::unix::ffi::OsStrExt;
+use std::path::PathBuf;
+struct Directory {
+   directory: PathBuf,
+   name: String,
+}
+impl Directory{
+   fn new(path:PathBuf, name: String) -> Directory{
+      let dir = Directory {name: name, directory: path};
+      dir
+
+   }
+}
+
+fn get_arg(args: &Vec<String>, val: i32) -> &str{
+
+   let mut arg_f: &str = " "; // espacio por defecto
+   if let Some(arg) = args.iter().nth(val as usize) {
+      arg_f = arg;
+   }
+   arg_f
+}
+fn main() -> io::Result<()>{
+
+   let args: Vec<String> = args().collect();
+   if !(args.iter().nth(4) == None) {println!("opcion desconocida/max arg exedido"); std::process::exit(1)} 
+   let arg1 = get_arg(&args, 1);
+   let arg2 = get_arg(&args, 2);
+   let arg3 = get_arg(&args, 3);
+   match arg1{
+      "-c" => option_create_dir(&arg2, &arg3 ),
+      "-m" => print!("fmodoif"),
+      "-d" => print!("deleteo"),
+      "-h" => print!("heelp"),
+      _ => println!("escribe -h para mas info "),
+   }
+   Ok(())
+}
+fn help_option(){
+
+}
+
+fn option_create_dir(dir_arg: &str , name_arg: &str) {
+   let mut dir: PathBuf = PathBuf::new();
+   if dir_arg.trim().is_empty(){
+      dir = current_dir().unwrap();
+   } else {
+      let path = PathBuf::from(&dir_arg);
+      if !(path.exists() && path.is_dir()){
+         println!("el directorio no es valido");
+         std::process::exit(1);
+      } else {
+         dir = path;
+      }
+
+
+   }
+
+   let dir_f: Directory = Directory::new(dir, "test".to_string());
+
+   let file = open_file();
+   let mut file_f = match file {
+      Ok(f) => f,
+      Err(er) => {println!("hubo un error al procesar el archivo: {}", er); std::process::exit(1)},
+   };
+   let tx: &[u8] = dir_f.directory.as_os_str().as_bytes();
+   file_f.write_all(b"\n").unwrap(); // agregás el salto de línea manual
+   file_f.write_all(tx).unwrap();
+   println!("succes el dir: {:?} ha sido agregado con existo", dir_f.directory);
+
+}
+fn open_file() -> Result<File, io::Error>{
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+      .append(true)
+        .open("text.txt");
+
+   file
+}
+
