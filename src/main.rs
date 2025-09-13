@@ -1,9 +1,9 @@
-use std::collections::{hash_map, HashMap};
 use std::env::{args, current_dir};
-use std::fs::{File, OpenOptions};
+use std::fs::{create_dir_all, File, OpenOptions};
 use std::io::{self, BufRead, Error, Write };
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
+use std::process;
 
 struct Directory {
    directory: PathBuf,
@@ -14,7 +14,6 @@ impl Directory{
    fn new(path:PathBuf, name: String) -> Directory{
       let dir = Directory {name: name, directory: path};
       dir
-
    }
 }
 fn warn(exit: bool){
@@ -23,9 +22,29 @@ fn warn(exit: bool){
       std::process::exit(1); } } fn option_help(){
 
 }
+fn get_data_dir() -> PathBuf {
+
+    // (o el directorio de configuración, dependiendo del uso).
+   match directories::ProjectDirs::from("com", "insixdev", "cliTool") {
+      Some(proj_dirs) => {
+         let data_dir = proj_dirs.data_dir(); // para linux seria
+         // $HOME/.local/share/cli-tool-dir-managment
+
+         dbg!(&data_dir);
+         if !data_dir.exists() { // si no existe 
+            create_dir_all(data_dir).expect("Failed to create data directory.");
+         }
+         return data_dir.to_path_buf();
+      }
+      _ => (),
+   }
+   // Fallback en caso de que no se pueda determinar el directorio
+   // (esto es poco probable, pero es una buena práctica).
+   PathBuf::from("./data")
+}
 
 
-fn get_arg(args: &Vec<String>, val: i32) -> &str{
+fn get_arg(args: &Vec<String>, val: i32) -> &str {
 
    let mut arg_f: &str = " "; // espacio por defecto
    if let Some(arg) = args.iter().nth(val as usize) {
@@ -52,7 +71,12 @@ fn main() -> io::Result<()>{
 }
 
 fn option_list(){
-   let file = File::open("text.txt").unwrap();
+   let file = open_file();
+   // verficamos si hubo un error refactoring de una funcion aqui
+   let file = match file {
+      Ok(f) => f,
+      Err(err) => {println!("mierda no se abrio tu archiv: razon: {} ", err); process::exit(1)}
+   };
    let reader = io::BufReader::new(file);
 
    // Contar líneas
@@ -61,7 +85,6 @@ fn option_list(){
       println!("{:?}", lin);
 
    }
-
 
 }
 /// primer arg para list o no 
@@ -109,14 +132,15 @@ fn option_create_dir(dir_arg: &str , name_arg: &str) {
 
 /// Fn que abre o crea el archivo dependiendo
 /// de si ya se creo o no 
-///
 fn open_file() -> Result<File, io::Error>{
+   // get the data directory of the user to append the dir.txt to create file 
+   let data_dir = get_data_dir().join("dir.txt"); 
    let file = OpenOptions::new()
       .read(true)
       .write(true)
       .create(true)
       .append(true)
-      .open("text.txt");
+      .open(&data_dir);
 
    file
 }
