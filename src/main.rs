@@ -1,13 +1,15 @@
 use std::collections::{hash_map, HashMap};
 use std::env::{args, current_dir};
 use std::fs::{File, OpenOptions};
-use std::io::{self,Error, Write };
+use std::io::{self, BufRead, Error, Write };
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
+
 struct Directory {
    directory: PathBuf,
    name: String,
 }
+
 impl Directory{
    fn new(path:PathBuf, name: String) -> Directory{
       let dir = Directory {name: name, directory: path};
@@ -15,6 +17,13 @@ impl Directory{
 
    }
 }
+fn warn(exit: bool){
+   println!("escribe -h para mas info ");
+   if exit {
+      std::process::exit(1); } } fn option_help(){
+
+}
+
 
 fn get_arg(args: &Vec<String>, val: i32) -> &str{
 
@@ -34,14 +43,36 @@ fn main() -> io::Result<()>{
    match arg1{
       "-c" => option_create_dir(&arg2, &arg3 ),
       "-m" => print!("fmodoif"),
-      "-d" => print!("deleteo"),
-      "-h" => print!("heelp"),
-      _ => println!("escribe -h para mas info "),
+      "-l" => option_list(), 
+      "-d" => option_delete_dir(&arg2),
+      "-h" => option_help(),
+      _ =>  warn(true),
    }
    Ok(())
 }
-fn help_option(){
 
+fn option_list(){
+   let file = File::open("text.txt").unwrap();
+   let reader = io::BufReader::new(file);
+
+   // Contar líneas
+   let line_count = reader.lines();
+   for lin in line_count {
+      println!("{:?}", lin);
+
+   }
+
+
+}
+/// primer arg para list o no 
+fn option_delete_dir(arg: &str) {
+   if arg.trim().is_empty(){warn(true);}
+   match arg {
+      "l" => {
+         print!("puto")
+      }
+      _ => warn(true)
+   }
 }
 
 fn option_create_dir(dir_arg: &str , name_arg: &str) {
@@ -68,18 +99,24 @@ fn option_create_dir(dir_arg: &str , name_arg: &str) {
       Err(er) => {println!("hubo un error al procesar el archivo: {}", er); std::process::exit(1)},
    };
    let tx: &[u8] = dir_f.directory.as_os_str().as_bytes();
-   file_f.write_all(b"\n").unwrap(); // agregás el salto de línea manual
+
    file_f.write_all(tx).unwrap();
+
+   file_f.write_all(b"\n").unwrap(); // agregás el salto de línea manual
    println!("succes el dir: {:?} ha sido agregado con existo", dir_f.directory);
 
 }
+
+/// Fn que abre o crea el archivo dependiendo
+/// de si ya se creo o no 
+///
 fn open_file() -> Result<File, io::Error>{
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
+   let file = OpenOptions::new()
+      .read(true)
+      .write(true)
+      .create(true)
       .append(true)
-        .open("text.txt");
+      .open("text.txt");
 
    file
 }
