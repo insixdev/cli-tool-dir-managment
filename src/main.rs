@@ -16,6 +16,7 @@ impl Directory{
       dir
    }
 }
+
 fn warn(exit: bool){
    println!("escribe -h para mas info ");
    if exit {
@@ -23,14 +24,12 @@ fn warn(exit: bool){
 
 }
 fn get_data_dir() -> PathBuf {
-
     // (o el directorio de configuración, dependiendo del uso).
    match directories::ProjectDirs::from("com", "insixdev", "cliTool") {
       Some(proj_dirs) => {
          let data_dir = proj_dirs.data_dir(); // para linux seria
          // $HOME/.local/share/cli-tool-dir-managment
 
-         dbg!(&data_dir);
          if !data_dir.exists() { // si no existe 
             create_dir_all(data_dir).expect("Failed to create data directory.");
          }
@@ -59,6 +58,7 @@ fn main() -> io::Result<()>{
    let arg1 = get_arg(&args, 1);
    let arg2 = get_arg(&args, 2);
    let arg3 = get_arg(&args, 3);
+
    match arg1{
       "-c" => option_create_dir(&arg2, &arg3 ),
       "-m" => print!("fmodoif"),
@@ -78,14 +78,14 @@ fn option_list(){
       Err(err) => {println!("mierda no se abrio tu archiv: razon: {} ", err); process::exit(1)}
    };
    let reader = io::BufReader::new(file);
-
-   // Contar líneas
+// Contar líneas
    let line_count = reader.lines();
-   for lin in line_count {
-      println!("{:?}", lin);
-
+   for (i,lin) in line_count.enumerate() {
+      match lin {
+         Ok(f) => println!("dir {}: {}", i+1, f),
+         Err(err) => println!("Error al procesar la linea. Err: {}", err),
+      }
    }
-
 }
 /// primer arg para list o no 
 fn option_delete_dir(arg: &str) {
