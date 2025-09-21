@@ -1,8 +1,9 @@
-use std::env::{args, current_dir};
-use std::fs::{create_dir_all, File, OpenOptions};
-use std::io::{self, BufRead, Error, Write };
+use std::env::{self, args, current_dir};
+use std::fs::{create_dir_all, File, OpenOptions, Permissions};
+use std::io::{self, BufRead, Error, Read, Write };
+use std::num::ParseIntError;
 use std::os::unix::ffi::OsStrExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 
 struct Directory {
@@ -20,15 +21,19 @@ impl Directory{
 fn warn(exit: bool){
    println!("escribe -h para mas info ");
    if exit {
-      std::process::exit(1); } } fn option_help(){
+      std::process::exit(1); } 
+} 
+fn option_help(){
+   println!("la configuracion de directorios esta guardado en: $HOME/.local/share/clitool")
 
 }
+
 fn get_data_dir() -> PathBuf {
     // (o el directorio de configuración, dependiendo del uso).
    match directories::ProjectDirs::from("com", "insixdev", "cliTool") {
       Some(proj_dirs) => {
          let data_dir = proj_dirs.data_dir(); // para linux seria
-         // $HOME/.local/share/cli-tool-dir-managment
+         // $HOME/.local/share/clitool
 
          if !data_dir.exists() { // si no existe 
             create_dir_all(data_dir).expect("Failed to create data directory.");
@@ -51,6 +56,7 @@ fn get_arg(args: &Vec<String>, val: i32) -> &str {
    }
    arg_f
 }
+
 fn main() -> io::Result<()>{
 
    let args: Vec<String> = args().collect();
@@ -61,6 +67,7 @@ fn main() -> io::Result<()>{
 
    match arg1{
       "-c" => option_create_dir(&arg2, &arg3 ),
+      "-g" => option_go(&arg2),
       "-m" => print!("fmodoif"),
       "-l" => option_list(), 
       "-d" => option_delete_dir(&arg2),
@@ -70,6 +77,45 @@ fn main() -> io::Result<()>{
    Ok(())
 }
 
+fn option_go(number: &str){
+   let file = open_file();
+   let file = match file {
+      Ok(f) => f,
+      Err(er) => {println!("hubo un error al procesar el archivo: {}", er); std::process::exit(1)},
+
+   };
+
+   let reader = io::BufReader::new(file);
+
+   let line_count = reader.lines();
+   let mut final_dir: String = String::new();
+   println!(" arg {}", number);
+   for (i,_) in line_count.enumerate() {
+      if number == i.to_string() {
+         // como el liftime de to_string es temporal 
+         println!("{}", number);
+         final_dir = i.to_string(); 
+         break;
+      }
+   }
+
+   if !final_dir.is_empty() {
+      let new_dir = Path::new(&final_dir);
+
+      if let Err(e) = env::set_current_dir(&new_dir) {
+         eprintln!("Error al cambiar de directorio: {}", e);
+      } else {
+         println!("Directorio actual cambiado a: {}", env::current_dir().unwrap().display());
+
+      }
+
+   }else {
+      println!("no se encontro el directorio puto")
+      
+   }
+
+}
+/// en listar las opciones
 fn option_list(){
    let file = open_file();
    // verficamos si hubo un error refactoring de una funcion aqui
@@ -78,7 +124,8 @@ fn option_list(){
       Err(err) => {println!("mierda no se abrio tu archiv: razon: {} ", err); process::exit(1)}
    };
    let reader = io::BufReader::new(file);
-// Contar líneas
+
+   // Contar líneas
    let line_count = reader.lines();
    for (i,lin) in line_count.enumerate() {
       match lin {
@@ -87,6 +134,7 @@ fn option_list(){
       }
    }
 }
+
 /// primer arg para list o no 
 fn option_delete_dir(arg: &str) {
    if arg.trim().is_empty(){warn(true);}
@@ -97,9 +145,9 @@ fn option_delete_dir(arg: &str) {
       _ => warn(true)
    }
 }
-
-fn option_create_dir(dir_arg: &str , name_arg: &str) {
-   let mut dir: PathBuf = PathBuf::new();
+/// fn que verifica si esta correcto el pathBuf
+fn verify_dir(dir_arg: &str) -> PathBuf{
+   let dir: PathBuf; 
    if dir_arg.trim().is_empty(){
       dir = current_dir().unwrap();
    } else {
@@ -111,16 +159,23 @@ fn option_create_dir(dir_arg: &str , name_arg: &str) {
          dir = path;
       }
 
-
    }
+   dir
+
+}
+
+fn option_create_dir(dir_arg: &str , name_arg: &str) {
+   let dir = verify_dir(&dir_arg);
 
    let dir_f: Directory = Directory::new(dir, "test".to_string());
 
    let file = open_file();
+
    let mut file_f = match file {
       Ok(f) => f,
       Err(er) => {println!("hubo un error al procesar el archivo: {}", er); std::process::exit(1)},
    };
+
    let tx: &[u8] = dir_f.directory.as_os_str().as_bytes();
 
    file_f.write_all(tx).unwrap();
@@ -133,7 +188,7 @@ fn option_create_dir(dir_arg: &str , name_arg: &str) {
 /// Fn que abre o crea el archivo dependiendo
 /// de si ya se creo o no 
 fn open_file() -> Result<File, io::Error>{
-   // get the data directory of the user to append the dir.txt to create file 
+// get the data directory of the user to append the dir.txt to create file 
    let data_dir = get_data_dir().join("dir.txt"); 
    let file = OpenOptions::new()
       .read(true)
