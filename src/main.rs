@@ -17,7 +17,21 @@ impl Directory{
       dir
    }
 }
-
+fn print_init(shell: &str) {
+   match shell {
+      "zsh" | "bash" => {
+         println!(
+         r#"cdc() {{
+    target=$(/mnt/data/proyect/rust/cliToolCarpet "$@")
+    cd "$target" || return 1
+}}
+cdc_list() {{
+    target=$(/mnt/data/proyect/rust/cliToolCarpet -l | fzf | awk '{{print $2}}')
+    sudo cd "$target" || return 1
+}}"#);
+      }  _ => eprintln!("Shell no soportada"),
+   }
+}
 fn warn(exit: bool){
    println!("escribe -h para mas info ");
    if exit {
@@ -60,6 +74,14 @@ fn get_arg(args: &Vec<String>, val: i32) -> &str {
 fn main() -> io::Result<()>{
 
    let args: Vec<String> = args().collect();
+
+   if args.get(1).map(|s| s.as_str()) == Some("init") {
+        if let Some(shell) = args.get(2) {
+            print_init(shell);
+            return Ok(());
+      }
+   }
+
    if !(args.iter().nth(4) == None) {println!("opcion desconocida/max arg exedido"); std::process::exit(1)} 
    let arg1 = get_arg(&args, 1);
    let arg2 = get_arg(&args, 2);
@@ -76,42 +98,50 @@ fn main() -> io::Result<()>{
    }
    Ok(())
 }
+fn add_one(number: String) -> String{
+   let number = number.parse::<i32>();
+   let number = match number {
+      Ok(num) => num+1,
+      Err(par) => {println!("{} : intente devuelta, ", par); process::exit(1);}
+   };
+   number.to_string()
+}
 
 fn option_go(number: &str){
    let file = open_file();
    let file = match file {
       Ok(f) => f,
       Err(er) => {println!("hubo un error al procesar el archivo: {}", er); std::process::exit(1)},
-
    };
 
    let reader = io::BufReader::new(file);
-
    let line_count = reader.lines();
+
    let mut final_dir: String = String::new();
-   println!(" arg {}", number);
-   for (i,_) in line_count.enumerate() {
-      if number == i.to_string() {
-         // como el liftime de to_string es temporal 
-         println!("{}", number);
-         final_dir = i.to_string(); 
+
+   for (i,lim) in line_count.enumerate() {
+      let st = add_one(i.to_string());
+      if number == st {
+         final_dir = match lim {
+            Ok(li) => li,
+            Err(err) => {println!("error {} ", err);process::exit(1);},
+         };
          break;
       }
    }
 
    if !final_dir.is_empty() {
+
       let new_dir = Path::new(&final_dir);
 
       if let Err(e) = env::set_current_dir(&new_dir) {
          eprintln!("Error al cambiar de directorio: {}", e);
       } else {
-         println!("Directorio actual cambiado a: {}", env::current_dir().unwrap().display());
-
+         println!("{}", final_dir);
+         std::process::exit(1);
       }
-
    }else {
-      println!("no se encontro el directorio puto")
-      
+      println!("no se encontro el directorio ")
    }
 
 }
@@ -146,7 +176,7 @@ fn option_delete_dir(arg: &str) {
    }
 }
 /// fn que verifica si esta correcto el pathBuf
-fn verify_dir(dir_arg: &str) -> PathBuf{
+fn verify_dir(dir_arg: &str ) -> PathBuf{
    let dir: PathBuf; 
    if dir_arg.trim().is_empty(){
       dir = current_dir().unwrap();
